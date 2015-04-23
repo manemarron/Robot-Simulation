@@ -1,4 +1,4 @@
-# Byte-compiled / optimized / DLL files
+Byte-compiled / optimized / DLL files
 __pycache__/
 *.py[cod]
 
@@ -58,3 +58,4 @@ target/
 
 #IPython Notebook checkpoints
 .ipynb_checkpoints/
+.DS_STORE
