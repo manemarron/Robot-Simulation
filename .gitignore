@@ -59,3 +59,8 @@ target/
 #IPython Notebook checkpoints
 .ipynb_checkpoints/
 .DS_STORE
+
+#LaTEX
+*.aux
+*.synctex*
+latex/*.pdf
