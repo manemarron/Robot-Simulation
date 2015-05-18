@@ -1,105 +1,108 @@
 # -*- coding: utf8 -*-
 import numpy as np
+from utils import rk4
 
 
 class Robot:
-    def __init__(self, km, ke, Mp, Mw, Ip, Iw, l, r, R, g):
+    def __init__(self, km, ke, mp, mw, ip, iw, l, r, res, g):
         """
-        Se inicializan las constantes físicas del chasis,
-        llantas y motores del sistema.
+        Physical constants that describe the robot's system are initialized:
+        Total mass, height, wheel radius, etc.
 
-        Parámetros:
-        - km: constante de torque de los motores
-        - ke: constante de fuerza contraelectromotriz
-        - Mp: masa del chasis (incluyendo motores y llantas)
-        - Mw: masa de la llanta
-        - Ip: momento de inercia del robot
-        - Iw: momento de inercia de las llantas
-        - l:  distancia entre el centro de gravedad de la llanta y
-              el centro de gravedad del robot
-        - r:  radio de la llanta
-        - R:  Resistencia nominal
-        - g:  constante de aceleración de la gravedad
+        Parameters
+        ----------
+        :param km : float
+            Motors' torque constant
+        :param ke : float
+            Back EMF constant (counter-electromotive force)
+        :param mp : float
+            Robot's mass
+        :param  mw : float
+            Wheels' mass
+        :param ip : float
+            Robot's momentum
+        :param iw : float
+            Wheels' momentum
+        :param l  : float
+            Distance between wheels' gravity center and robot's gravity center
+        :param r  : float
+            Wheels' radius
+        :param res  : float
+            Nominal Terminal resistance
+        :param g  : float
+            Gravity acceleration constant
         """
         self.km = km
         self.ke = ke
-        self.Mp = Mp
-        self.Mw = Mw
-        self.Ip = Ip
-        self.Iw = Iw
+        self.Mp = mp
+        self.Mw = mw
+        self.Ip = ip
+        self.Iw = iw
         self.l = l
         self.r = r
-        self.R = R
+        self.R = res
         self.g = g
 
-        beta = 2*Mw + 2*Iw/r**2 + Mp
-        alpha = Ip*beta + 2*Mp*l**2*(Mw + Iw/r**2)
+        beta = 2 * mw + 2 * iw / r ** 2 + mp
+        alpha = ip * beta + 2 * mp * l ** 2 * (mw + iw / r ** 2)
 
-        self._init_A(km, ke, Mp, Mw, Ip, Iw, l, r, R, g, alpha, beta)
-        self._init_B(km, ke, Mp, Mw, Ip, Iw, l, r, R, g, alpha, beta)
+        self._init_a(alpha, beta)
+        self._init_b(alpha, beta)
 
-    def _init_A(self, km, ke, Mp, Mw, Ip, Iw, l, r, R, g, alpha, beta):
+    def _init_a(self, alpha, beta):
         """
-        Se genera la matriz de dinámica del sistema
+        Initializes the state transition matrix of the robot's system
+        :param alpha: float
+        :param beta: float
         """
-        a22 = 2*km*ke*(Mp*l*r - Ip - Mp*l**2)/(R*alpha*r**2)
-        a23 = Mp**2 * g * l**2 / alpha
-        a42 = 2*km*ke*(r*beta - Mp*l)/(R*alpha*r**2)
-        a43 = Mp*g*l*beta/alpha
+        a22 = (2 * self.km * self.ke *
+               (self.Mp * self.l * self.r - self.Ip - self.Mp * self.l ** 2) / (self.R * alpha * self.r ** 2))
+        a23 = self.Mp ** 2 * self.g * self.l ** 2 / alpha
+        a42 = 2 * self.km * self.ke * (self.r * beta - self.Mp * self.l) / (self.R * alpha * self.r ** 2)
+        a43 = self.Mp * self.g * self.l * beta / alpha
 
         self.A = np.matrix([
-            [0,   1,   0, 0],
+            [0, 1, 0, 0],
             [0, a22, a23, 0],
-            [0,   0,   0, 1],
+            [0, 0, 0, 1],
             [0, a42, a43, 0],
         ])
 
-    def _init_B(self, km, ke, Mp, Mw, Ip, Iw, l, r, R, g, alpha, beta):
+    def _init_b(self, alpha, beta):
         """
-        Se genera la matriz de control del sistema
+        Initializes the control matrix of the robot's system
+        :param alpha: float
+        :param beta: float
         """
-        b2 = 2*km*(Ip + Mp*l**2 - Mp*l*r)/(R*r*alpha)
-        b4 = 2*km*(Mp*l - r*beta)/(R*r*alpha)
+        b2 = 2 * self.km * (self.Ip + self.Mp * self.l ** 2 - self.Mp * self.l * self.r) / (self.R * self.r * alpha)
+        b4 = 2 * self.km * (self.Mp * self.l - self.r * beta) / (self.R * self.r * alpha)
 
         self.B = np.matrix([0, b2, 0, b4]).T
 
-    def dinamica(self, state, t, u=0):
+    def dynamics(self, state):
+        return self.A * state
+
+    def integrate(self, n, state, dt):
+        history = np.array([state])
+        for i in range(n):
+            state = rk4(self.dynamics, state, i, dt)
+            history = np.append(history, [state], axis=0)
+        return history
+
+    @staticmethod
+    def _get_gyroscope(theta):
         """
-        Define la dinámica del sistema a partir de un estado
+        Gets angle with noise component
+        :param theta: float
+        :rtype : float
         """
-        return self.A*state + self.B*u
+        return theta + np.random.randn() * 0.01
 
-
-
-
-
-class RobotConFiltro(Robot):
-    """
-    Dentro de esta clase se abstrae el comportamiento de un
-    robot bípedo utilizando un filtro de Kalman
-    """
-    def __init__(self, km, ke, Mp, Mw, Ip, Iw, l, r, R, g):
-        super.__init__(km, ke, Mp, Mw, Ip, Iw, l, r, R, g)
-
-    def _init_filtro_kalman(self):
-        self.P = np.matrix([
-            [1, 0, 0, 0],
-            [0, 1, 0, 0],
-            [0, 0, 1, 0],
-            [0, 0, 0, 1]
-        ])
-        self.Q = np.matrix(
-            [0, 0, 0, 0],
-            [0, 0.01, 0, 0],
-            [0, 0, 0.01, 0],
-            [0, 0, 0, 0]
-        )
-        self.Var_medicion = 0.002
-
-    def filtroKalman(self, state, t, u=0):
+    @staticmethod
+    def _get_accelerometer(a):
         """
-        Implementación del filtro de Kalman
+        Gets acceleration with noise.
+        :param a: float
+        :rtype: float
         """
-        # Etapa de predicción
-        X = self.dinamica(state, t, u)
-        self.P = (self.A * self.P * self.A.T) + self.Q
+        return a + np.random.randn() * 0.01
