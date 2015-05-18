@@ -4,7 +4,7 @@ import numpy as np
 
 class Robot:
     def __init__(self, km, ke, Mp, Mw, Ip, Iw, l, r, R, g):
-        '''
+        """
         Se inicializan las constantes físicas del chasis,
         llantas y motores del sistema.
 
@@ -20,7 +20,7 @@ class Robot:
         - r:  radio de la llanta
         - R:  Resistencia nominal
         - g:  constante de aceleración de la gravedad
-        '''
+        """
         self.km = km
         self.ke = ke
         self.Mp = Mp
@@ -39,6 +39,9 @@ class Robot:
         self._init_B(km, ke, Mp, Mw, Ip, Iw, l, r, R, g, alpha, beta)
 
     def _init_A(self, km, ke, Mp, Mw, Ip, Iw, l, r, R, g, alpha, beta):
+        """
+        Se genera la matriz de dinámica del sistema
+        """
         a22 = 2*km*ke*(Mp*l*r - Ip - Mp*l**2)/(R*alpha*r**2)
         a23 = Mp**2 * g * l**2 / alpha
         a42 = 2*km*ke*(r*beta - Mp*l)/(R*alpha*r**2)
@@ -52,25 +55,51 @@ class Robot:
         ])
 
     def _init_B(self, km, ke, Mp, Mw, Ip, Iw, l, r, R, g, alpha, beta):
+        """
+        Se genera la matriz de control del sistema
+        """
         b2 = 2*km*(Ip + Mp*l**2 - Mp*l*r)/(R*r*alpha)
         b4 = 2*km*(Mp*l - r*beta)/(R*r*alpha)
 
         self.B = np.matrix([0, b2, 0, b4]).T
 
     def dinamica(self, state, t, u=0):
+        """
+        Define la dinámica del sistema a partir de un estado
+        """
         return self.A*state + self.B*u
 
-    def RK4(self, f, y, t, dt):
-        k1 = f(y, t)
-        k2 = f(y + 0.5*k1*dt, t+0.5*dt)
-        k3 = f(y + 0.5*k2*dt, t+0.5*dt)
-        k4 = f(y + k3*dt, t+dt)
 
-        return y + float(1)/6*dt*(k1+2*k2+2*k3+k4)
 
-    def integrar(self, n, state, dt):
-        historico = np.array([state])
-        for i in range(n):
-            state = self.RK4(self.dinamica, state, i, dt)
-            historico = np.append(historico, [state], axis=0)
-        return historico
+
+
+class RobotConFiltro(Robot):
+    """
+    Dentro de esta clase se abstrae el comportamiento de un
+    robot bípedo utilizando un filtro de Kalman
+    """
+    def __init__(self, km, ke, Mp, Mw, Ip, Iw, l, r, R, g):
+        super.__init__(km, ke, Mp, Mw, Ip, Iw, l, r, R, g)
+
+    def _init_filtro_kalman(self):
+        self.P = np.matrix([
+            [1, 0, 0, 0],
+            [0, 1, 0, 0],
+            [0, 0, 1, 0],
+            [0, 0, 0, 1]
+        ])
+        self.Q = np.matrix(
+            [0, 0, 0, 0],
+            [0, 0.01, 0, 0],
+            [0, 0, 0.01, 0],
+            [0, 0, 0, 0]
+        )
+        self.Var_medicion = 0.002
+
+    def filtroKalman(self, state, t, u=0):
+        """
+        Implementación del filtro de Kalman
+        """
+        # Etapa de predicción
+        X = self.dinamica(state, t, u)
+        self.P = (self.A * self.P * self.A.T) + self.Q
