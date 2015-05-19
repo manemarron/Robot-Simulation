@@ -63,6 +63,5 @@ target/
 #LaTEX
 *.aux
 *.synctex*
-latex/*.pdf
 
 .idea/

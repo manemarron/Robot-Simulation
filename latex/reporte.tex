@@ -1,5 +1,10 @@
 \documentclass[10pt]{article}
 \usepackage[utf8]{inputenc}
+\usepackage{graphicx} % Used to insert images
+\usepackage{adjustbox} % Used to constrain images to a maximum size 
+\usepackage{color} % Allow colors to be defined
+\usepackage{fixltx2e}
+\usepackage{textgreek}
 
 \title{Simulación de robot bípedo}
 \date{18 de Mayo de 2015}
@@ -10,5 +15,89 @@
 }
 \begin{document}
 \maketitle
-\section{Introduccion}
+\section{Introducción}
+dkjsgds
+\section{Marco teórico}
+\subsection{Métodos de Runge-Kutta}
+Consiste en un conjunto de métodos genéricos iterativos, explícitos e implícitos que sirven para resolver ecuaciones diferenciales. Tiene el error local de truncamiento del mismo orden que los métodos de Taylor, pero tiene la ventaja que prescinden del cálculo y evaluación de las derivadas de la función f(t,y). Se define como el orden del método el numero n, variable que representa la cantidad de términos utilizados. En nuestro proyecto implementamos orden 4. Se usan las fórmulas expresadas en la siguiente imagen:
+\begin{center}
+\adjustimage{max size={0.8\linewidth}{0.8\paperheight}}{images/runge.png}
+\end{center}
+\subsection{Controlador}
+El sistema de control en el desarrollo auto-balanceable es muy importante para que funcione. Hay muchos sistemas de control pero nosotros decidimos utilizar el controlador PID.\\
+El PID es un mecanismo de control por retroalimentación  que funciona calculando el error entre un valor medio y un valor deseado. Es muy usado en sistemas de control industrial. Consiste en tres parámetros :\\
+\begin{enumerate}
+\item \textbf{Proporcional}: Depende del error actual. Produce una señal de control proporcional al error de la salida del proceso respecto a la posición que se desea.
+\item \textbf{Integral}: Depende de los errores pasados. Produce una señal  que proporciona una corrección para poder compensar las perturbaciones y mantener el proceso controlado en el punto que se desea. 
+\item \textbf{Derivativo}: Predice errores futuros y de esta manera anticipa el efecto de la acción proporcional para poder estabilizar el proceso mas rápidamente después de alguna perturbación.
+\end{enumerate}
+Al sumar estos tres parámetros  se obtiene el ajuste deseado  al proceso. En el caso de nuestro proyecto en la etapa en la que aplicamos el controlador lo que logramos fue que la posición y la velocidad del robot bípedo se estabilizara, y en el caso del chasis que se balanceara para evitar que el robot se cayera.\\
+La siguiente imagen muestra la manera en la que el PID funciona y la ecuación:
+\begin{center}
+\adjustimage{max size={0.8\linewidth}{0.8\paperheight}}{images/pid.png}
+\begin{equation}
+u(t) = K_p[e(t) + \frac{1}{T_i}\int_{}^{}e(t)dt + T_d\frac{d}{dt}e(t)]
+\end{equation}
+\end{center}
+\subsection{Filtro de Kalman}
+El filtro de Kalman es un algoritmo que fue desarrollado por Rudolf E. Kalman en 1960. Sirve para poder estimar el estado no medible de un sistema dinámico lineal a partir de mediciones de ruido blanco (señal aleatoria que se caracteriza porque sus valores de señal en dos instantes de tiempo distintos no tienen correlación).\\
+Este algoritmo es un método recursivo que estima el estado lineal mediante la minimización de la media del error cuadrático.  Al conocer el comportamiento actual del proceso al que se aplica (en nuestro caso el robot bípedo), el filtro estima el estado futuro del sistema sumando un termino de corrección proporcional al factor que se predijo.\\
+Las ecuaciones que representan el sistema son:
+\begin{center}
+\begin{equation}
+x_k = A_{k-1} x_{k-1} + B_{k-1} u_{k-1} + w_{k-1}
+\end{equation}
+\begin{equation}
+z_k = H_{k-1} x_{k} + v_{k}
+\end{equation}
+\end{center}
+en donde,
+\begin{itemize}
+\item A y B son las mismas matrices de la dinámica del robot
+\item x\textsubscript{k} es la matriz de estados (al igual que X\textsubscript{k-1} solo que un estado adelante)
+\item U\textsubscript{k-1} es generada por el controlador
+\item H\textsubscript{k} es una matriz de 2X4 con unos en la posición (1,1) y (2,2) y ceros en las demás posiciones  la cual indica la relación entre mediciones y el vector de estado al momento k
+\item v\textsubscript{k} es ruido blanco generado por la función de numpy, randn
+\item Z\textsubscript{k} es el vector de posiciones al momento k.
+\end{itemize}
+\subsubsection{Algoritmo del filtro de Kalman}
+\paragraph{Predicción}
+\begin{center}
+\begin{equation}
+x_{k|k-1} = \Phi_k x_{k-1|k-1} + B_k u_k
+\end{equation}
+\begin{equation}
+P_{k|k-1} = \Phi_k P_{k-1|k-1} \Phi_k ^ T + Q_k
+\end{equation}
+\end{center}
+\paragraph{Actualización}
+\begin{center}
+\begin{equation}
+y_k = z_k - H_k x_{k|k-1}
+\end{equation}
+\begin{equation}
+K_k = P_{k|k-1} H_k ^ T (H_k P_{k|k-1} H_k ^ T + R_k)^{-1}
+\end{equation}
+\begin{equation}
+x_{k|k} = x_{k|k-1} + K_k y_k
+\end{equation}
+\begin{equation}
+P_{k|k} = (I - K_k H_k)P_{k|k-1}
+\end{equation}
+\end{center}
+donde,
+\begin{itemize}
+\item \textPhi\textsubscript{k} : Matriz de transición de estados
+\item x\textsubscript{k|k-1} : Estimación futura del vector de estados
+\item P\textsubscript{k|k-1} : Covarianza del error asociada a la estimación futura
+\item Q\textsubscript{k} : La matriz de covarianza de ruido de la observación
+\item R\textsubscript{k} : La matriz de covarianza de ruido de las mediciones
+\item K\textsubscript{k} : Ganancia de Kalman
+\end{itemize}
+\section{Desarrollo}
+dsag
+\section{Resultados}
+dsg
+\section{Conclusiones}
+dsg
 \end{document}
