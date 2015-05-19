@@ -28,7 +28,7 @@ class RobotWithController(Robot):
 
         self.u = 0
 
-    def dynamics(self, state):
+    def dynamics(self, state, t):
         return self.A * state + self.B * self.u
 
     def integrate(self, n, state, dt):
@@ -38,15 +38,14 @@ class RobotWithController(Robot):
         for i in range(n):
             self.u = pid.execute_pid(theta)
             state = rk4(self.dynamics, state, i, dt)
+            theta = Robot._get_gyroscope(Robot._get_gyroscope(state[2]))
             history = np.append(history, [state], axis=0)
-
-            theta = Robot._get_gyroscope(state[2])
         return history
 
     def execute_kalman_filter(self, n, state, dt):
         pid = PID(kp=self.kp, ki=self.ki, kd=self.kd, angle=self.pidAngle, dt=dt)
         history = np.array([state])
-        theta = self._get_gyroscope(state[2])
+        theta = state[2]
         x = state
         h = np.matrix([
             [1, 0, 0, 0],
@@ -65,11 +64,11 @@ class RobotWithController(Robot):
             [0, 0, 0, 1]
         ])
         r = np.matrix([
-            [0.01, 0],
-            [0, 0.01]
+            [10**-3, 0],
+            [0, 10**-3]
         ])
         for i in range(n):
-            z = (h * x) + np.matrix([[np.random.randn()*0.01], [np.random.randn()*0.01]])
+            z = (h * x) + np.matrix([[np.random.randn()*0.001], [np.random.randn()*0.001]])
             u = pid.execute_pid(theta)
             x = (self.A * x) + (self.B * u)
             p = (self.A * p * self.A.T) + q
@@ -79,6 +78,7 @@ class RobotWithController(Robot):
             k = p * h.T * np.linalg.inv(s)
             x = x + (k * y)
             p = (np.eye(4) - (k * h))*p
+            theta = x[2]
             history = np.append(history, [x], axis=0)
 
         return history

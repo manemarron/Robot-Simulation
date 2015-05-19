@@ -79,7 +79,7 @@ class Robot:
 
         self.B = np.matrix([0, b2, 0, b4]).T
 
-    def dynamics(self, state):
+    def dynamics(self, state, t):
         return self.A * state
 
     def integrate(self, n, state, dt):
@@ -96,7 +96,7 @@ class Robot:
         :param theta: float
         :rtype : float
         """
-        return theta + np.random.randn() * 0.01
+        return theta + np.random.randn() * 10**-5
 
     @staticmethod
     def _get_accelerometer(a):
@@ -105,4 +105,4 @@ class Robot:
         :param a: float
         :rtype: float
         """
-        return a + np.random.randn() * 0.01
+        return a + np.random.randn() * 0.001
