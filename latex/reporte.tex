@@ -9,8 +9,8 @@
 \title{Simulación de robot bípedo}
 \date{18 de Mayo de 2015}
 \author{
-	Daniela Blanco
-	José Manuel Marrón Ruiz
+	Daniela Blanco\\
+	José Manuel Marrón Ruiz\\
 	Jorge Alfredo Delgado Meraz
 }
 \begin{document}
@@ -264,21 +264,39 @@ $\alpha = (I_{p}\beta + 2M_{p}l^2[M_{w} + \frac{I_{w}}{r^2}])$
 \vspace{2 mm}
 En este modelo se asume que las ruedas del robot siempre estarán en contacto con la tierra (suelo) y que no hay "deslizamiento" (slip) de las llantas (por ejemplo, suelo mojado).
 \section{Resultados}
-
+Tras hacer simulaciones al evolucionar el sistema sin ningún tipo de control externo, se obtuvo la gráfica siguiente. Esta gráfica se obtuvo a partir de las condiciones iniciales [0,1,0,0], es decir, el robot vertical pero con una velocidad inicial en x de 1 m/s. Se puede observar como el robot se mueve en un principio en la dirección de la velocidad y a una tasa casi constante. Sin embargo, en cuanto llega a un punto inestable, el robot trata de re-estabilizarse modificando su dirección de movimiento diametralmente, pero no logra la estabilización.
 \begin{center}
 \adjustimage{max size={\linewidth}{\paperheight}}{images/Robot_sincodigo_4_0.png}
 \end{center}
+La gráfica a continuación muestra el comportamiento del robot bajo diferentes ángulos iniciales (en este caso de +-\textpi /10). Se logra observar en las gráficas como al no tener una velocidad en X, el robot únicamente cae, modificando la posición debido a esta caida.
 \begin{center}
 \adjustimage{max size={\linewidth}{\paperheight}}{images/Robot_sincodigo_8_1.png}
 \end{center}
+La siguiente gráfica nos provee el comportamiento del sistema tras aplicar un control al sistema. El sistema está constantemente midiendo su orientación mediante sensores (cuyo comportamiento simplificamos obteniendo el ángulo en cada momento del tiempo y agregando una componente de ruido con una distribución normal). Se puede observar como el sistema, a pesar de permanecer estable durante más tiempo, finalmente termina por desestabilizarse. Esto nos muestra la dificultad de controlar este tipo de sistemas mediante métodos tradicionales, como es el controlador PID. 
 \begin{center}
 \adjustimage{max size={\linewidth}{\paperheight}}{images/Robot_sincodigo_10_0.png}
 \end{center}
+Finalmente, la siguiente gráfica nos da información sobre como evoluciona el sistema utilizando un filtro de Kalman en conjunto con el controlador PID. Se puede observar como en este caso el sistema sí logra estabilizarse al menos durante la duración de la simulación. Esto se debe a que el filtro de Kalman, siendo un método de predicción estocástica, logra adivinar con bastante precisión el movimiento del robot y por lo tanto, logra pasar al controlador una señal mejor procesada. Así, podemos ver como el sistema se mantiene dentro de límites bastante correctos, pues el robot permanece con un ángulo cercano a la vertical durante toda la simulación.
 \begin{center}
 \adjustimage{max size={\linewidth}{\paperheight}}{images/Robot_sincodigo_12_1.png}
 \end{center}
+Tras la simulación con el filtro de Kalman, procedimos a buscar, mediante prueba y error, valores para  K\textsubscript{p},K\textsubscript{i} y K\textsubscript{d} que lograran que el sistema permaneciera estable. Tras varias pruebas y simulaciones, terminamos con los valores de 0.5, 0.75 y 0.00002 respectivamente, que son los valores que se ven en la gráfica. Es decir, hubo que hacer una investigación exhaustiva de estas constantes antes de poder llegar a un punto estable del sistema.\\
+Habiendo encontrado estas constantes, nos dimos a la tarea de medir la eficiencia de las mismas, con el afán de ver si realmente en todos los casos estas constantes eran suficientemente buenas para el robot que simulamos. Simulamos el robot con el filtro de Kalman mil veces, utilizando los valores obtenidos, y los resultados obtenidos fueron los que se muestran en la siguiente tabla:
+\begin{center}
+\begin{tabular}{| c | c |}       
+  \hline              
+  Ángulo medio (radianes) & Varianza media (radianes) \\
+  \hline
+  -0.00180966930094 & 0.0244610975524 \\
+  \hline  
+\end{tabular}
+\end{center}
+Es decir, el ángulo medio obtenido se acerca mucho a los 0 grados, mientras que la varianza media de las mil simulaciones fue de un poco menos que 1.5 grados. Es decir, los valores obtenidos logran una eficiencia bastante buena dadas las condiciones del robot. 
 \section{Conclusiones}
-dsg
+Después de las simulaciones ejecutadas es necesario decir que el robot bípedo es un sistema que se vuelve inestable muy rápidamente. Las simulaciones sin ningún tipo de control tardan milisegundos en llegar a un punto inestable. Es por ello que la teoría de control es de vital importancia para el estudio de este tipo de proyectos. 
+Por otra parte, notamos a partir de las simulaciones hechas con el controlador PID (sin Filtro de Kalman), que a pesar de realizar varias simulaciones con diferentes valores de K\textsubscript{p},K\textsubscript{i} y K\textsubscript{d}, después de un tiempo no demasiado largo, el sistema entraba a un estado inestable. Por esta razón, cuestionamos en este trabajo la eficiencia de un controlador PID para lograr la estabilización de un robot bípedo. 
+Las simulaciones hechas evolucionando el sistema utilizando el filtro de Kalman brindaron resultados más positivos. El controlador PID, junto con el filtro, mantenían el sistema en un estado estable tras segundos de simulación.
+El desarrollo de esta simulación implicó la gran dificultad de no poder comprobar los resultados de las simulaciones realizadas empíricamente ya que el proyecto involucraba la construcción del robot. Para solventar esta problemática recurrimos a resultados experimentales obtenidos por Ooi\cite{ooi03} y Adeel(et. al)\cite{adeel13}.
 \begin{thebibliography}{9}
 
 \bibitem{ooi03}
