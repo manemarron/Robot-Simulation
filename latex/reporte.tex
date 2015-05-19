@@ -16,7 +16,14 @@
 \begin{document}
 \maketitle
 \section{Introducción}
-dkjsgds
+El proyecto consiste en simular el comportamiento de un robot bípedo auto-balanceable utilizando librerías de cómputo numérico de Python, como numpy y matplotlib. Se contemplaron tres etapas en el desarrollo del proyecto:
+\begin{enumerate}
+\item Evolución del sistema dinámico sin aplicación de control
+\item Evolución del sistema dinámico con aplicación del control (PID)
+\item Evolución del sistema dinámico con aplicación del filtro de Kalman y el control (PID)
+\end{enumerate}
+Debido a la naturaleza del proyecto, no obtuvimos directamente las ecuaciones dinámicas del sistema, sino que utilizamos las ecuaciones obtenidas por Ooi\cite{ooi03}. De la misma forma, utilizamos las mismas condiciones físicas y eléctricas del robot utilizado en la tesis previamente citada.\\
+El objetivo del proyecto es observar el comportamiento esperado del robot bajo diferentes condiciones iniciales y bajo diferentes simulaciones, con el propósito de observar la diferencias que presentan y extraer conclusiones sobre el movimiento y la dinámica de un robot bípedo. 
 \section{Marco teórico}
 \subsection{Métodos de Runge-Kutta}
 Consiste en un conjunto de métodos genéricos iterativos, explícitos e implícitos que sirven para resolver ecuaciones diferenciales. Tiene el error local de truncamiento del mismo orden que los métodos de Taylor, pero tiene la ventaja que prescinden del cálculo y evaluación de las derivadas de la función f(t,y). Se define como el orden del método el numero n, variable que representa la cantidad de términos utilizados. En nuestro proyecto implementamos orden 4. Se usan las fórmulas expresadas en la siguiente imagen:
@@ -94,10 +101,195 @@ donde,
 \item R\textsubscript{k} : La matriz de covarianza de ruido de las mediciones
 \item K\textsubscript{k} : Ganancia de Kalman
 \end{itemize}
-\section{Desarrollo}
-dsag
+\section{Modelado del sistema}
+La dinámica del robot debe ser descrita por un modelo matemático para facilitar el desarrollo y eficiencia del sistema de control  de balance angular. Para la implementación física del robot, debemos considerar dos modelos matemáticos: un péndulo invertido y un modelo lineal para un motor DC. El modelo del motor requiere de conocimientos de electrónica y circuitería, por lo que excede los propósitos del presente proyecto y nos concentraremos en la formulación teórica del auto-balance y su modelado matemático.
+\subsection{Modelo dinámico para un péndulo invertido de dos ruedas}
+Primeramente analizaremos el péndulo y la dinámica de las ruedas por separado, y al final combinaremos ambos modelos.
+\subsubsection{Ruedas}
+Como las ecuaciones de las ruedas son análogas entre sí, sólo mostraremos el desarrollo para la rueda derecha.
+Por la segunda ley de Newton, la suma de las fuerzas horizontales en \emph{x} es:
+\vspace{2 mm}
+ $\sum{F_{}x} = Ma$
+\vspace{1 mm}
+\begin{equation} 
+M_{\omega}\ddot{x} = H_{fR} - H_{R}
+\end{equation} 
+\vspace{2 mm}
+La suma de fuerzas alrededor de la rueda nos da:
+\vspace{2 mm}
+$\sum{M_{o}} = I\alpha$
+\vspace{1 mm}
+\begin{equation} 
+I_{w}\ddot{\theta}_{w} = C_{R} - H_{_{fR}}r
+\end{equation} 
+\vspace{2 mm}
+Acomodando los términos y substituyendo los parámetros del motor DC, la ecuación anterior se convierte en:
+
+\vspace{2 mm}
+\begin{equation} 
+I_{w}\ddot{\theta}_{w} = \frac{-k_{m}k_{e}}{R}\dot{\theta}_{w} + \frac{k_{m}}{R}V_{a} - H_{_{fR}}r
+\end{equation} 
+\vspace{2 mm}
+\emph{Para la rueda derecha}
+\vspace{2 mm}
+\begin{equation} 
+\Rightarrow M_{w}\ddot{x} = \frac{-k_{m}k_{e}}{Rr}\dot{\theta}_{w} + \frac{k_{m}}{Rr}V_{a} - \frac{I_{w}}{r}\ddot{\theta}_{w} - H_{L}
+\end{equation} 
+\vspace{2 mm}
+\emph{Para la rueda izquierda}
+\vspace{2 mm}
+\begin{equation} 
+\Rightarrow M_{w}\ddot{x} = \frac{-k_{m}k_{e}}{Rr}\dot{\theta}_{w} + \frac{k_{m}}{Rr}V_{a} - \frac{I_{w}}{r}\ddot{\theta}_{w} - H_{R}
+\end{equation} 
+\vspace{2 mm}
+\emph{Tomando en cuenta las transformaciones:}\
+\vspace{2 mm}
+
+$\ddot{\theta}_{w}r = \ddot{x} \Rightarrow \ddot{\theta}_{w} = \frac{\ddot{x}}{r}$
+
+\vspace{2 mm}
+
+$\dot{\theta}_{w}r = \dot{x} \Rightarrow \dot{\theta}_{w} = \frac{\dot{x}}{r}$
+
+\vspace{2 mm}
+\emph{Y sumando las ecuaciones de las ruedas, obtenemos finalmente:}
+\vspace{2 mm}
+\begin{equation} 
+2(M_{w} + \frac{I_{w}}{r^2})\ddot{x} = \frac{-2k_{m}k_{e}}{Rr^2}\dot{x} + \frac{2k_{m}}{Rr}V_{a} - (H_{L} + H_{R})
+\end{equation} 
+\vspace{2 mm}
+
+\subsubsection{Péndulo Invertido}
+A continuación, mostramos cómo se modela el chasis del robot, lo cual se puede realizar como un péndulo invertido.
+De nuevo, por la segunda Ley de Newton, la suma de fuerzas \emph{horizontales} es:
+
+\vspace{2 mm}
+ $\sum{F_{x}} = M_{p}\ddot{x}$
+\vspace{2 mm}
+\begin{equation} 
+(H_{L} + H_{R}) - M_{p}l\ddot{\theta}_{p} + M_{p}l\dot{\theta}^2_{p}\sin(\theta_{p}) = M_{p}\ddot{x}
+\end{equation} 
+\vspace{2 mm}
+
+La suma de fuerzas \emph{perpendiculares} al péndulo son:
+
+\vspace{2 mm}
+ $\sum{F_{xp}} = M_{p}\ddot{x}\cos(\theta_{p})$
+\vspace{2 mm}
+\begin{equation} 
+(H_{L} + H_{R})\cos(\theta_{p}) + (P_{L} + P_{R})\sin(\theta_{p}) - M_{p}g\sin(\theta_{p}) - M_{p}l\ddot{\theta_{p}} = M_{p}\ddot{x}\cos(\theta_{p})
+\end{equation} 
+\vspace{2 mm}
+
+La suma de \emph{momentos} alrededor del centro de masa del péndulo:
+
+\vspace{2 mm}
+$\sum{M_{o}} = I\alpha$ , es decir
+\vspace{2 mm}
+\begin{equation} 
+-(H_{L} + H_{R})l\cos(\theta_{p}) - (P_{L} + P_{R})l\sin(\theta_{p}) - (C_{L} + C_{R}) = I_{p}\ddot{\theta_{p}}
+\end{equation}  
+\vspace{2 mm}
+
+Definiendo el torque aplicado al péndulo y después de una transformación lineal tenemos:
+\begin{equation} 
+C_{L} + C_{R} = \frac{-2k_{m}k_{e}}{R}\frac{\dot{x}}{r} + \frac{2k_{m}}{R}V_{a}
+\end{equation}
+ 
+\vspace{2 mm}
+Substituyendo en la ecuación (9) anterior y re-ordenando:
+\begin{equation}
+-(H_{L} + H_{R})l\cos{\theta_{p}} - (P_{L} + P_{R})l\sin{\theta_{p}} - (\frac{-2k_{m}k_{e}}{Rr}\dot{x} + \frac{2k_{m}}{R}V_{a}) = I_{p}\ddot{\theta_{p}}
+\end{equation}
+
+\vspace{2 mm}
+De esta forma obtenemos las dos siguientes ecuaciones:
+\vspace{2 mm}
+\begin{equation}
+(I_{p} + M_{p}l^2)\ddot{\theta_{p}} - \frac{2k_{m}k_{e}}{Rr}\dot{x} + \frac{2k_{m}}{R}V_{a} + M_{p}gl\sin(\theta_{p}) = -M_{p}l\ddot{x}\cos(\theta_{p})
+\end{equation}
+
+\begin{equation}
+\frac{2k_{m}}{Rr}V_{a} = (2M_{w} + \frac{2I_{w}}{r^2} + M_{p})\ddot{x} + \frac{2k_{m}k_{e}}{Rr^2}\dot{x} + M_{p}l\ddot{\theta_{p}}\cos(\theta_{p}) - M_{p}I\dot{\theta_{p}^2}\sin(\theta_{p})
+\end{equation}
+
+\vspace{2 mm}
+\subsection*{4.2 Obtención del Sistema}
+\vspace{2 mm}
+Linealizando las ecuaciones (12) y (13), asumiendo que $\theta_{p} = \pi + \phi$ , donde $\phi$ representa el ángulo vertical en dirección ascendente y re-ordenando dichas ecuaciones, obtenemos:
+
+\vspace{2 mm}
+\begin{equation}
+\ddot{\phi} = \frac{M_{p}l}{I_{p} + M_{p}l^2}\ddot{x} + \frac{2k_{m}k_{e}}{Rr(I_{p} + M_{p}l^2)}\dot{x} - \frac{2k_{m}}{R(I_{p} + M_{p}l^2)}V_{a} + \frac{M_{p}gl}{I_{p} + M_{p}l^2}\theta
+\end{equation}
+
+\vspace{2 mm}
+\begin{equation}
+\ddot{x} = \frac{2k_{m}}{Rr(2M_{w} + \frac{2I_{w}}{r^2} + M_{p})}V_{a} - \frac{2k_{m}k_{e}}{Rr^2(2M_{w} + \frac{2I_{w}}{r^2} + M_{p})}\dot{x} + \frac{M_{p}l}{2M_{w} + \frac{2I_{w}}{r^2} + M_{p}}\ddot{\phi}
+\end{equation}
+
+\vspace{2 mm}
+Después de sustituir las ecuaciones y de una serie de manipulaciones algebráicas, obtenemos el siguiente \emph{sistema}:
+\vspace{2 mm}
+\begin{equation}
+\  \left( \begin{array}{c}
+\dot{x} \\
+\ddot{x}\\
+\dot{\phi} \\
+\ddot{\phi} \end{array} \right) \   =
+\  \left( \begin{array}{cccc}
+0 & 1 & 0 & 0\\
+0 & \frac{2k_{m}k_{2}(M_{p}lr - I_{p} - M_{p}l^2)}{Rr^2\alpha} & \frac{M_{p}^2gl^2}{\alpha} & 0\\
+0 & 0 & 0 & 1 \\
+0 & \frac{2k_{m}k_{e}(r\beta - M_{p}l)}{Rr^2\alpha} & \frac{M_{p}gl\beta}{\alpha} & 0 \end{array} \right) \ 
+\  \left( \begin{array}{c}
+x \\
+\dot{x}\\
+\phi \\
+\dot{\phi}\end{array} \right) \ 
++
+\  \left( \begin{array}{c}
+0 \\
+\frac{2k_{m}(I_{p} + M_{p}l^2 - M_{p}lr)}{Rr\alpha}\\
+0\\
+\frac{2k_{m}(M_{p}l) - r\beta}{Rr\alpha} \end{array} \right) \ V_{a}
+\end{equation}
+
+\vspace{2 mm}
+donde:
+$\beta = (2M_{w} + \frac{2I_{w}}{r^2} + M_{p})$,   
+\hspace{4 mm}
+$\alpha = (I_{p}\beta + 2M_{p}l^2[M_{w} + \frac{I_{w}}{r^2}])$
+
+\vspace{2 mm}
+En este modelo se asume que las ruedas del robot siempre estarán en contacto con la tierra (suelo) y que no hay "deslizamiento" (slip) de las llantas (por ejemplo, suelo mojado).
 \section{Resultados}
-dsg
+
+\begin{center}
+\adjustimage{max size={\linewidth}{\paperheight}}{images/Robot_sincodigo_4_0.png}
+\end{center}
+\begin{center}
+\adjustimage{max size={\linewidth}{\paperheight}}{images/Robot_sincodigo_8_1.png}
+\end{center}
+\begin{center}
+\adjustimage{max size={\linewidth}{\paperheight}}{images/Robot_sincodigo_10_0.png}
+\end{center}
+\begin{center}
+\adjustimage{max size={\linewidth}{\paperheight}}{images/Robot_sincodigo_12_1.png}
+\end{center}
 \section{Conclusiones}
 dsg
+\begin{thebibliography}{9}
+
+\bibitem{ooi03}
+  Rich Chi Ooi,
+  \emph{Balancing a Two-Wheeled Autonomous Robot},
+  The University of Western Australia, School of Mechanical Engineering,
+  2003.
+\bibitem{adeel13}
+  Umar Adeel, K.S.Alimgeer, et. al
+  \emph{Autonomous Dual Wheel Self Balancing Robot Based on Microcontroller},
+  COMSATS Institute of Information Technology, Pakistan,
+  2013.
+\end{thebibliography}
 \end{document}
