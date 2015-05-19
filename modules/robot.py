@@ -1,76 +1,108 @@
 # -*- coding: utf8 -*-
 import numpy as np
+from utils import rk4
 
 
 class Robot:
-    def __init__(self, km, ke, Mp, Mw, Ip, Iw, l, r, R, g):
-        '''
-        Se inicializan las constantes físicas del chasis,
-        llantas y motores del sistema.
+    def __init__(self, km, ke, mp, mw, ip, iw, l, r, res, g):
+        """
+        Physical constants that describe the robot's system are initialized:
+        Total mass, height, wheel radius, etc.
 
-        Parámetros:
-        - km: constante de torque de los motores
-        - ke: constante de fuerza contraelectromotriz
-        - Mp: masa del chasis (incluyendo motores y llantas)
-        - Mw: masa de la llanta
-        - Ip: momento de inercia del robot
-        - Iw: momento de inercia de las llantas
-        - l:  distancia entre el centro de gravedad de la llanta y
-              el centro de gravedad del robot
-        - r:  radio de la llanta
-        - R:  Resistencia nominal
-        - g:  constante de aceleración de la gravedad
-        '''
+        Parameters
+        ----------
+        :param km : float
+            Motors' torque constant
+        :param ke : float
+            Back EMF constant (counter-electromotive force)
+        :param mp : float
+            Robot's mass
+        :param  mw : float
+            Wheels' mass
+        :param ip : float
+            Robot's momentum
+        :param iw : float
+            Wheels' momentum
+        :param l  : float
+            Distance between wheels' gravity center and robot's gravity center
+        :param r  : float
+            Wheels' radius
+        :param res  : float
+            Nominal Terminal resistance
+        :param g  : float
+            Gravity acceleration constant
+        """
         self.km = km
         self.ke = ke
-        self.Mp = Mp
-        self.Mw = Mw
-        self.Ip = Ip
-        self.Iw = Iw
+        self.Mp = mp
+        self.Mw = mw
+        self.Ip = ip
+        self.Iw = iw
         self.l = l
         self.r = r
-        self.R = R
+        self.R = res
         self.g = g
 
-        beta = 2*Mw + 2*Iw/r**2 + Mp
-        alpha = Ip*beta + 2*Mp*l**2*(Mw + Iw/r**2)
+        beta = 2 * mw + 2 * iw / r ** 2 + mp
+        alpha = ip * beta + 2 * mp * l ** 2 * (mw + iw / r ** 2)
 
-        self._init_A(km, ke, Mp, Mw, Ip, Iw, l, r, R, g, alpha, beta)
-        self._init_B(km, ke, Mp, Mw, Ip, Iw, l, r, R, g, alpha, beta)
+        self._init_a(alpha, beta)
+        self._init_b(alpha, beta)
 
-    def _init_A(self, km, ke, Mp, Mw, Ip, Iw, l, r, R, g, alpha, beta):
-        a22 = 2*km*ke*(Mp*l*r - Ip - Mp*l**2)/(R*alpha*r**2)
-        a23 = Mp**2 * g * l**2 / alpha
-        a42 = 2*km*ke*(r*beta - Mp*l)/(R*alpha*r**2)
-        a43 = Mp*g*l*beta/alpha
+    def _init_a(self, alpha, beta):
+        """
+        Initializes the state transition matrix of the robot's system
+        :param alpha: float
+        :param beta: float
+        """
+        a22 = (2 * self.km * self.ke *
+               (self.Mp * self.l * self.r - self.Ip - self.Mp * self.l ** 2) / (self.R * alpha * self.r ** 2))
+        a23 = self.Mp ** 2 * self.g * self.l ** 2 / alpha
+        a42 = 2 * self.km * self.ke * (self.r * beta - self.Mp * self.l) / (self.R * alpha * self.r ** 2)
+        a43 = self.Mp * self.g * self.l * beta / alpha
 
         self.A = np.matrix([
-            [0,   1,   0, 0],
+            [0, 1, 0, 0],
             [0, a22, a23, 0],
-            [0,   0,   0, 1],
+            [0, 0, 0, 1],
             [0, a42, a43, 0],
         ])
 
-    def _init_B(self, km, ke, Mp, Mw, Ip, Iw, l, r, R, g, alpha, beta):
-        b2 = 2*km*(Ip + Mp*l**2 - Mp*l*r)/(R*r*alpha)
-        b4 = 2*km*(Mp*l - r*beta)/(R*r*alpha)
+    def _init_b(self, alpha, beta):
+        """
+        Initializes the control matrix of the robot's system
+        :param alpha: float
+        :param beta: float
+        """
+        b2 = 2 * self.km * (self.Ip + self.Mp * self.l ** 2 - self.Mp * self.l * self.r) / (self.R * self.r * alpha)
+        b4 = 2 * self.km * (self.Mp * self.l - self.r * beta) / (self.R * self.r * alpha)
 
         self.B = np.matrix([0, b2, 0, b4]).T
 
-    def dinamica(self, state, t, u=0):
-        return self.A*state + self.B*u
+    def dynamics(self, state):
+        return self.A * state
 
-    def RK4(self, f, y, t, dt):
-        k1 = f(y, t)
-        k2 = f(y + 0.5*k1*dt, t+0.5*dt)
-        k3 = f(y + 0.5*k2*dt, t+0.5*dt)
-        k4 = f(y + k3*dt, t+dt)
-
-        return y + float(1)/6*dt*(k1+2*k2+2*k3+k4)
-
-    def integrar(self, n, state, dt):
-        historico = np.array([state])
+    def integrate(self, n, state, dt):
+        history = np.array([state])
         for i in range(n):
-            state = self.RK4(self.dinamica, state, i, dt)
-            historico = np.append(historico, [state], axis=0)
-        return historico
+            state = rk4(self.dynamics, state, i, dt)
+            history = np.append(history, [state], axis=0)
+        return history
+
+    @staticmethod
+    def _get_gyroscope(theta):
+        """
+        Gets angle with noise component
+        :param theta: float
+        :rtype : float
+        """
+        return theta + np.random.randn() * 0.01
+
+    @staticmethod
+    def _get_accelerometer(a):
+        """
+        Gets acceleration with noise.
+        :param a: float
+        :rtype: float
+        """
+        return a + np.random.randn() * 0.01
